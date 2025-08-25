@@ -1,13 +1,19 @@
-name: Build Termux Packages (Docker + Cache Optimized)
+name: Build Termux Package and Push
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
+    inputs:
+      package:
+        description: 'Package to build (e.g., bash, curl)'
+        required: true
+        default: 'bash'
+      arch:
+        description: 'Architecture (aarch64, arm, i686, x86_64)'
+        required: true
+        default: 'aarch64'
 
 jobs:
-  build-termux-packages:
+  build-termux-package:
     runs-on: ubuntu-latest
 
     steps:
@@ -36,7 +42,7 @@ jobs:
 
       - name: Clone termux-packages
         run: |
-          git clone https://github.com/termux/termux-packages.git
+          git clone https://github.com/RohitVerma882/termux-packages.git
           cd termux-packages
           git submodule update --init --recursive
 
@@ -51,18 +57,20 @@ jobs:
       - name: Pull prebuilt Termux builder image
         run: docker pull ghcr.io/termux/package-builder:latest
 
-      - name: Build package inside Docker
+      - name: Build specified package
         run: |
           cd termux-packages
-          ./scripts/run-docker.sh ./build-package.sh -I -a aarch64 bash
+          ./scripts/run-docker.sh ./build-package.sh -I -a "${{ github.event.inputs.arch }}" "${{ github.event.inputs.package }}"
 
-      - name: Compress outputs
+      - name: Copy .deb packages to repo
         run: |
-          cd termux-packages/output
-          tar -czvf ../../termux-packages-output.tar.gz .
+          mkdir -p built-packages
+          cp termux-packages/output/*/*.deb built-packages/ || true
 
-      - name: Upload compressed output as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: termux-packages-output
-          path: termux-packages-output.tar.gz
+      - name: Commit and push .deb packages
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add built-packages/*.deb || true
+          git commit -m "Add build of ${{ github.event.inputs.package }} for ${{ github.event.inputs.arch }} ($(date))" || echo "No changes to commit"
+          git push
