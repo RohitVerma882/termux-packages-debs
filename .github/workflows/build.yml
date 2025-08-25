@@ -1,34 +1,70 @@
-name: Build Adbify Libs
+name: Build ADBify Libs
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   build-termux-packages:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout this repo
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Cache apt lists
+        uses: actions/cache@v4
+        with:
+          path: |
+            /var/cache/apt
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/*.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      - name: Install dependencies (with cache)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y git curl build-essential docker.io tar
+          sudo apt-get update -y
+          sudo apt-get upgrade -y
+          sudo apt-get install -y git curl docker.io tar
 
       - name: Clone termux-packages
         run: |
           git clone https://github.com/RohitVerma882/termux-packages.git
           cd termux-packages
-          git submodule update --init --recursive
 
-      - name: Build packages
+      - name: Cache Termux build directories
+        uses: actions/cache@v4
+        with:
+          path: |
+            termux-packages/.termux-build
+            termux-packages/.termux-build/_cache
+          key: ${{ runner.os }}-termux-${{ hashFiles('termux-packages/packages/**') }}
+          restore-keys: |
+            ${{ runner.os }}-termux-
+
+      - name: Cache Docker Image
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-cache
+          key: docker-termux-builder
+
+      - name: Load cached Docker image (if exists)
+        run: |
+          if [ -f /tmp/docker-cache/termux-builder.tar ]; then
+            docker load -i /tmp/docker-cache/termux-builder.tar || true
+          fi
+
+      - name: Build Docker image (Termux package-builder)
+        run: |
+          cd termux-packages/scripts
+          docker build -t termux/package-builder .
+          mkdir -p /tmp/docker-cache
+          docker save termux/package-builder -o /tmp/docker-cache/termux-builder.tar
+          
+      - name: Build package inside Docker
         run: |
           cd termux-packages
-          ./scripts/run-docker.sh ./build-package.sh -a all bash
+          ./scripts/run-docker.sh ./build-package.sh -I -a aarch64 bash
 
       - name: Compress outputs
         run: |
@@ -40,19 +76,4 @@ jobs:
         with:
           name: termux-packages-output
           path: termux-packages-output.tar.gz
-
-      - name: Push compressed output to repo
-        if: github.ref == 'refs/heads/main'
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          mkdir upload-repo && cd upload-repo
-          git init
-          git remote add origin https://github.com/<YOUR_USERNAME>/<YOUR_UPLOAD_REPO>.git
-          git fetch origin main
-          git checkout -b main origin/main || git checkout --orphan main
-          cp ../termux-packages-output.tar.gz .
-          git add termux-packages-output.tar.gz
-          git commit -m "Update compressed built packages $(date)"
-          git push --force origin main
           
