@@ -44,8 +44,7 @@ jobs:
         run: |
           git clone https://github.com/RohitVerma882/termux-packages.git
           cd termux-packages
-          git submodule update --init --recursive
-
+          
       - name: Cache Termux build directories
         uses: actions/cache@v4
         with:
@@ -57,21 +56,20 @@ jobs:
       - name: Pull prebuilt Termux builder image
         run: docker pull ghcr.io/termux/package-builder:latest
 
-      - name: Build specified package
+      - name: Build packages
         run: |
           cd termux-packages
           ./scripts/run-docker.sh ./build-package.sh -C -F -a "${{ github.event.inputs.arch }}" "${{ github.event.inputs.package }}"
 
       - name: Copy all built .deb files to built-packages/
         run: |
-          mkdir -p built-packages/${{ github.event.inputs.package }}/${{ github.event.inputs.arch }}
-          cp -r termux-packages/output/*/*.deb built-packages/${{ github.event.inputs.package }}/${{ github.event.inputs.arch }}/ || true
-          ls -lh built-packages/${{ github.event.inputs.package }}/${{ github.event.inputs.arch }}
-
+          mkdir -p built-packages
+          cp -r termux-packages/output/*.deb built-packages || true
+          
       - name: Commit & push built .deb packages
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add built-packages/${{ github.event.inputs.package }}/${{ github.event.inputs.arch }}/*.deb || true
-          git commit -m "Add .deb builds of ${{ github.event.inputs.package }} for ${{ github.event.inputs.arch }} on $(date)" || echo "No changes to commit"
+          git add built-packages || true
+          git commit -m "Add .deb builds" || echo "No changes to commit"
           git push
