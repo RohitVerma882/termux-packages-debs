@@ -60,17 +60,18 @@ jobs:
       - name: Build specified package
         run: |
           cd termux-packages
-          ./scripts/run-docker.sh ./build-package.sh -I -a "${{ github.event.inputs.arch }}" "${{ github.event.inputs.package }}"
+          ./scripts/run-docker.sh ./build-package.sh -C -F -a "${{ github.event.inputs.arch }}" "${{ github.event.inputs.package }}"
 
-      - name: Copy .deb packages to repo
+      - name: Copy all built .deb files to built-packages/
         run: |
-          mkdir -p built-packages
-          cp termux-packages/output/*/*.deb built-packages/ || true
+          mkdir -p built-packages/${{ github.event.inputs.package }}/${{ github.event.inputs.arch }}
+          cp -r termux-packages/output/*/*.deb built-packages/${{ github.event.inputs.package }}/${{ github.event.inputs.arch }}/ || true
+          ls -lh built-packages/${{ github.event.inputs.package }}/${{ github.event.inputs.arch }}
 
-      - name: Commit and push .deb packages
+      - name: Commit & push built .deb packages
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add built-packages/*.deb || true
-          git commit -m "Add build of ${{ github.event.inputs.package }} for ${{ github.event.inputs.arch }} ($(date))" || echo "No changes to commit"
+          git add built-packages/${{ github.event.inputs.package }}/${{ github.event.inputs.arch }}/*.deb || true
+          git commit -m "Add .deb builds of ${{ github.event.inputs.package }} for ${{ github.event.inputs.arch }} on $(date)" || echo "No changes to commit"
           git push
