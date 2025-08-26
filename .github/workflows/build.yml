@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Package to build (e.g., bash curl)'
+        description: 'Package to build (e.g. bash curl)'
         required: true
         default: 'bash'
 
@@ -38,24 +38,16 @@ jobs:
 
       - name: Clone termux-packages
         run: |
-          git clone https://github.com/RohitVerma882/termux-packages.git
+          git clone -b adbify https://github.com/RohitVerma882/termux-packages.git
           cd termux-packages
-          
-      - name: Cache Termux build directories
-        uses: actions/cache@v4
-        with:
-          path: |
-            termux-packages/.termux-build
-            termux-packages/.termux-build/_cache
-          key: ${{ runner.os }}-termux-${{ hashFiles('termux-packages/packages/**') }}
-
+      
       - name: Pull prebuilt Termux builder image
         run: docker pull ghcr.io/termux/package-builder:latest
 
       - name: Build packages
         run: |
           cd termux-packages
-          ./scripts/run-docker.sh ./build-package.sh -F -a all "${{ github.event.inputs.package }}"
+          ./scripts/run-docker.sh ./build-package.sh -C -F -a all "${{ github.event.inputs.package }}"
 
       - name: Copy all built .deb files to debs/
         run: |
@@ -67,6 +59,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add built-packages || true
+          git add debs || true
           git commit -m "Add .deb builds" || echo "No changes to commit"
           git push
