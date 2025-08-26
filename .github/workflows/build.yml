@@ -26,14 +26,6 @@ jobs:
                       /opt/hostedtoolcache
           docker system prune -af || true
 
-      - name: Cache apt lists
-        uses: actions/cache@v4
-        with:
-          path: |
-            /var/cache/apt
-            /var/lib/apt/lists
-          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/*.yml') }}
-
       - name: Install dependencies
         run: |
           sudo apt-get update -y
