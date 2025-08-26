@@ -1,15 +1,15 @@
-name: Build Termux Package and Push
+name: Build Termux Packages
 
 on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Package to build (e.g., bash, curl)'
+        description: 'Package to build (e.g., bash curl)'
         required: true
         default: 'bash'
 
 jobs:
-  build-termux-package:
+  build:
     runs-on: ubuntu-latest
     permissions:
           contents: write
@@ -33,9 +33,8 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y git curl tar
+          sudo apt-get install -y git
           sudo systemctl start docker || sudo service docker start || true
-          docker --version
 
       - name: Clone termux-packages
         run: |
@@ -56,12 +55,13 @@ jobs:
       - name: Build packages
         run: |
           cd termux-packages
-          ./scripts/run-docker.sh ./build-package.sh -C -F -a all "${{ github.event.inputs.package }}"
+          ./scripts/run-docker.sh ./build-package.sh -F -a all "${{ github.event.inputs.package }}"
 
-      - name: Copy all built .deb files to built-packages/
+      - name: Copy all built .deb files to debs/
         run: |
-          mkdir -p built-packages
-          cp -r termux-packages/output/*.deb built-packages || true
+          mkdir -p debs
+          rm -rf built-packages
+          cp -r termux-packages/output/*.deb debs || true
           
       - name: Commit & push built .deb packages
         run: |
