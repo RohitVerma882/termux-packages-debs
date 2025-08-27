@@ -39,7 +39,7 @@ jobs:
         run: |
           cd termux-packages
           ./scripts/run-docker.sh ./build-package.sh -C -F -a all \
-          bash coreutils
+          coreutils
 
       - name: Copy all built .deb files to debs/
         run: |
