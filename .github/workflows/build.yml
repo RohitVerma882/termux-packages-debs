@@ -2,7 +2,12 @@ name: Build Termux Packages
 
 on:
   workflow_dispatch:
-
+    inputs:
+      package:
+        description: "Package to build (bash, coreutils, proot, etc.)"
+        required: true
+        default: "bash"
+        
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -39,7 +44,7 @@ jobs:
         run: |
           cd termux-packages
           ./scripts/run-docker.sh ./build-package.sh -C -F -a all \
-          coreutils
+          ${{ github.event.inputs.package }}
 
       - name: Copy all built .deb files to debs/
         run: |
